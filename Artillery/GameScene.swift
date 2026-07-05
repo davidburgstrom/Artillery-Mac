@@ -131,14 +131,70 @@ class GameScene: SKScene {
             // Update visual position
             projectileNode?.position = projectile.position
             
-            // For now, just remove projectile if it goes off screen
-            // (we'll add collision detection in the next step)
-            if projectile.position.x < 0 || projectile.position.x > size.width ||
-               projectile.position.y < 0 || projectile.position.y > size.height {
+            // Check for collisions
+            checkCollisions()
+        }
+    }
+    
+    // Check if projectile has hit terrain or a player
+    func checkCollisions() {
+        guard let projectile = projectile else { return }
+        guard let terrain = terrain else { return }
+        
+        let pos = projectile.position
+        
+        // Check if projectile went off screen (sides or top)
+        if pos.x < 0 || pos.x > size.width || pos.y > size.height {
+            removeProjectile()
+            print("Projectile went off screen")
+            return
+        }
+        
+        // Check if projectile went below the bottom of the screen
+        if pos.y < 0 {
+            removeProjectile()
+            print("Projectile fell off bottom of screen")
+            return
+        }
+        
+        // Check collision with terrain
+        // Get terrain height at projectile's x position
+        let terrainHeight = terrain.heightAt(x: pos.x)
+        if pos.y <= terrainHeight {
+            // Hit terrain!
+            removeProjectile()
+            print("Projectile hit terrain at (\(Int(pos.x)), \(Int(pos.y)))")
+            return
+        }
+        
+        // Check collision with Player 1
+        if let p1 = player1 {
+            let distance = sqrt(pow(pos.x - p1.position.x, 2) + pow(pos.y - p1.position.y, 2))
+            // Collision threshold: if projectile is within 15 points of player center
+            if distance < 15 {
                 removeProjectile()
-                print("Projectile went off screen at position: \(projectile.position)")
+                print("Direct hit on Player 1!")
+                handlePlayerHit(playerNumber: 1)
+                return
             }
         }
+        
+        // Check collision with Player 2
+        if let p2 = player2 {
+            let distance = sqrt(pow(pos.x - p2.position.x, 2) + pow(pos.y - p2.position.y, 2))
+            if distance < 15 {
+                removeProjectile()
+                print("Direct hit on Player 2!")
+                handlePlayerHit(playerNumber: 2)
+                return
+            }
+        }
+    }
+    
+    // Handle when a player is hit
+    func handlePlayerHit(playerNumber: Int) {
+        // We'll implement the win condition in the next step
+        print("Player \(playerNumber) was hit! Game over!")
     }
     
     // MARK: - UI Interaction Methods
@@ -183,8 +239,16 @@ class GameScene: SKScene {
             firingAngle = 180 - player.angle
         }
         
+        // Start projectile 20 points away from player in the firing direction
+        // This prevents immediate collision with the shooter
+        let angleRadians = firingAngle * .pi / 180.0
+        let offsetDistance: CGFloat = 20
+        let startX = player.position.x + offsetDistance * cos(angleRadians)
+        let startY = player.position.y + offsetDistance * sin(angleRadians)
+        let startPosition = CGPoint(x: startX, y: startY)
+        
         projectile = Projectile(
-            position: player.position,
+            position: startPosition,
             angle: firingAngle,
             speed: player.velocity,
             startTime: startTime
