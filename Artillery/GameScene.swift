@@ -20,6 +20,9 @@ class GameScene: SKScene {
     var player1Node: SKShapeNode?
     var player2Node: SKShapeNode?
     
+    // Game state
+    var currentPlayerNumber: Int = 1  // 1 or 2
+    
     override func didMove(to view: SKView) {
         // Set sky background color
         backgroundColor = NSColor(red: 0.53, green: 0.81, blue: 0.92, alpha: 1.0)
@@ -113,5 +116,28 @@ class GameScene: SKScene {
     
     override func update(_ currentTime: TimeInterval) {
         // Called before each frame is rendered
+    }
+    
+    // MARK: - UI Interaction Methods
+    
+    // Get the current player
+    func getCurrentPlayer() -> Player? {
+        return currentPlayerNumber == 1 ? player1 : player2
+    }
+    
+    // Update current player's angle based on slider
+    func updateCurrentPlayerAngle(angle: CGFloat) {
+        getCurrentPlayer()?.angle = angle
+    }
+    
+    // Update current player's velocity based on slider
+    func updateCurrentPlayerVelocity(velocity: CGFloat) {
+        getCurrentPlayer()?.velocity = velocity
+    }
+    
+    // Fire a shot (to be implemented in next step)
+    func fire() {
+        print("Fire! Player \(currentPlayerNumber) - Angle: \(getCurrentPlayer()?.angle ?? 0)° Velocity: \(getCurrentPlayer()?.velocity ?? 0)")
+        // We'll implement projectile motion in the next step
     }
 }
