@@ -28,6 +28,8 @@ class GameScene: SKScene {
     var currentPlayerNumber: Int = 1  // 1 or 2
     var isShotInProgress: Bool = false  // true when a projectile is flying
     var lastUpdateTime: TimeInterval = 0  // Track time for projectile physics
+    var gameOver: Bool = false  // true when someone has won
+    var winnerNumber: Int = 0  // which player won (0 = no winner yet)
     
     override func didMove(to view: SKView) {
         // Set sky background color
@@ -146,6 +148,7 @@ class GameScene: SKScene {
         // Check if projectile went off screen (sides or top)
         if pos.x < 0 || pos.x > size.width || pos.y > size.height {
             removeProjectile()
+            switchTurns()
             print("Projectile went off screen")
             return
         }
@@ -153,6 +156,7 @@ class GameScene: SKScene {
         // Check if projectile went below the bottom of the screen
         if pos.y < 0 {
             removeProjectile()
+            switchTurns()
             print("Projectile fell off bottom of screen")
             return
         }
@@ -163,6 +167,7 @@ class GameScene: SKScene {
         if pos.y <= terrainHeight {
             // Hit terrain!
             removeProjectile()
+            switchTurns()
             print("Projectile hit terrain at (\(Int(pos.x)), \(Int(pos.y)))")
             return
         }
@@ -193,8 +198,67 @@ class GameScene: SKScene {
     
     // Handle when a player is hit
     func handlePlayerHit(playerNumber: Int) {
-        // We'll implement the win condition in the next step
-        print("Player \(playerNumber) was hit! Game over!")
+        print("Player \(playerNumber) was hit!")
+        
+        // The player who WASN'T hit wins
+        winnerNumber = playerNumber == 1 ? 2 : 1
+        gameOver = true
+        
+        // Show win message
+        showWinMessage()
+    }
+    
+    // Switch to the other player's turn
+    func switchTurns() {
+        if gameOver {
+            return  // Don't switch turns if game is over
+        }
+        
+        currentPlayerNumber = currentPlayerNumber == 1 ? 2 : 1
+        print("Now it's Player \(currentPlayerNumber)'s turn")
+        
+        // Update the UI to show the new player
+        if let viewController = view?.window?.contentViewController as? ViewController {
+            viewController.updatePlayerLabel(playerNumber: currentPlayerNumber)
+            
+            // Reset sliders to the new player's current settings
+            if let player = getCurrentPlayer() {
+                viewController.angleSlider.doubleValue = Double(player.angle)
+                viewController.velocitySlider.doubleValue = Double(player.velocity)
+                viewController.angleLabel.stringValue = String(format: "Angle: %.0f°", player.angle)
+                viewController.velocityLabel.stringValue = String(format: "Velocity: %.0f", player.velocity)
+            }
+        }
+    }
+    
+    // Show a win message overlay
+    func showWinMessage() {
+        let message = SKLabelNode(text: "Player \(winnerNumber) Wins!")
+        message.fontSize = 48
+        message.fontColor = NSColor.white
+        message.fontName = "Helvetica-Bold"
+        message.position = CGPoint(x: size.width / 2, y: size.height / 2 + 50)
+        
+        // Add a semi-transparent background
+        let background = SKShapeNode(rectOf: CGSize(width: 500, height: 200), cornerRadius: 20)
+        background.fillColor = NSColor.black.withAlphaComponent(0.7)
+        background.strokeColor = NSColor.white
+        background.lineWidth = 3
+        background.position = CGPoint(x: size.width / 2, y: size.height / 2)
+        background.zPosition = 100
+        
+        message.zPosition = 101
+        
+        addChild(background)
+        addChild(message)
+        
+        // Add instruction text
+        let instructionText = SKLabelNode(text: "Press 'N' for New Game")
+        instructionText.fontSize = 20
+        instructionText.fontColor = NSColor.white
+        instructionText.position = CGPoint(x: size.width / 2, y: size.height / 2 - 20)
+        instructionText.zPosition = 101
+        addChild(instructionText)
     }
     
     // MARK: - UI Interaction Methods
@@ -216,6 +280,12 @@ class GameScene: SKScene {
     
     // Fire a shot
     func fire() {
+        // Don't allow firing if game is over
+        guard !gameOver else {
+            print("Game is over! Press 'N' for a new game")
+            return
+        }
+        
         // Don't allow firing if a shot is already in progress
         guard !isShotInProgress else {
             print("Wait for current shot to finish")
@@ -284,5 +354,43 @@ class GameScene: SKScene {
         projectileNode = nil
         projectile = nil
         isShotInProgress = false
+    }
+    
+    // Reset the game
+    func resetGame() {
+        // Remove all children (clears win message and projectiles)
+        removeAllChildren()
+        
+        // Reset game state
+        gameOver = false
+        winnerNumber = 0
+        currentPlayerNumber = 1
+        isShotInProgress = false
+        projectile = nil
+        projectileNode = nil
+        
+        // Recreate the game
+        setupGame()
+        
+        // Update UI
+        if let viewController = view?.window?.contentViewController as? ViewController {
+            viewController.updatePlayerLabel(playerNumber: 1)
+            if let player = player1 {
+                viewController.angleSlider.doubleValue = Double(player.angle)
+                viewController.velocitySlider.doubleValue = Double(player.velocity)
+                viewController.angleLabel.stringValue = String(format: "Angle: %.0f°", player.angle)
+                viewController.velocityLabel.stringValue = String(format: "Velocity: %.0f", player.velocity)
+            }
+        }
+        
+        print("New game started!")
+    }
+    
+    // Handle keyboard input
+    override func keyDown(with event: NSEvent) {
+        // Check for 'N' key to start a new game
+        if event.characters?.lowercased() == "n" {
+            resetGame()
+        }
     }
 }
