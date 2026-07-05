@@ -20,8 +20,14 @@ class GameScene: SKScene {
     var player1Node: SKShapeNode?
     var player2Node: SKShapeNode?
     
+    // Projectile
+    var projectile: Projectile?
+    var projectileNode: SKShapeNode?
+    
     // Game state
     var currentPlayerNumber: Int = 1  // 1 or 2
+    var isShotInProgress: Bool = false  // true when a projectile is flying
+    var lastUpdateTime: TimeInterval = 0  // Track time for projectile physics
     
     override func didMove(to view: SKView) {
         // Set sky background color
@@ -115,7 +121,24 @@ class GameScene: SKScene {
     }
     
     override func update(_ currentTime: TimeInterval) {
-        // Called before each frame is rendered
+        // Track the current time for use in fire()
+        lastUpdateTime = currentTime
+        
+        // Update projectile position if one is in flight
+        if let projectile = projectile {
+            projectile.updatePosition(currentTime: currentTime)
+            
+            // Update visual position
+            projectileNode?.position = projectile.position
+            
+            // For now, just remove projectile if it goes off screen
+            // (we'll add collision detection in the next step)
+            if projectile.position.x < 0 || projectile.position.x > size.width ||
+               projectile.position.y < 0 || projectile.position.y > size.height {
+                removeProjectile()
+                print("Projectile went off screen at position: \(projectile.position)")
+            }
+        }
     }
     
     // MARK: - UI Interaction Methods
@@ -135,9 +158,67 @@ class GameScene: SKScene {
         getCurrentPlayer()?.velocity = velocity
     }
     
-    // Fire a shot (to be implemented in next step)
+    // Fire a shot
     func fire() {
-        print("Fire! Player \(currentPlayerNumber) - Angle: \(getCurrentPlayer()?.angle ?? 0)° Velocity: \(getCurrentPlayer()?.velocity ?? 0)")
-        // We'll implement projectile motion in the next step
+        // Don't allow firing if a shot is already in progress
+        guard !isShotInProgress else {
+            print("Wait for current shot to finish")
+            return
+        }
+        
+        guard let player = getCurrentPlayer() else { return }
+        
+        print("Fire! Player \(currentPlayerNumber) - Angle: \(player.angle)° Velocity: \(player.velocity)")
+        
+        // Create projectile starting at player's position
+        // Use the current SpriteKit time (lastUpdateTime) as the start time
+        let startTime = lastUpdateTime
+        
+        // Adjust firing angle based on which player is shooting
+        // Player 1 (left side) shoots to the right (0-90°)
+        // Player 2 (right side) shoots to the left (90-180°), so we mirror the angle
+        var firingAngle = player.angle
+        if currentPlayerNumber == 2 {
+            // Mirror the angle for player 2 (e.g., 45° becomes 135°)
+            firingAngle = 180 - player.angle
+        }
+        
+        projectile = Projectile(
+            position: player.position,
+            angle: firingAngle,
+            speed: player.velocity,
+            startTime: startTime
+        )
+        
+        // Create visual representation of projectile (a small circle)
+        createProjectileNode()
+        
+        isShotInProgress = true
+    }
+    
+    // Create the visual node for the projectile
+    func createProjectileNode() {
+        // Remove old projectile node if it exists
+        projectileNode?.removeFromParent()
+        
+        guard let projectile = projectile else { return }
+        
+        // Create a circle for the projectile
+        let radius: CGFloat = 5
+        projectileNode = SKShapeNode(circleOfRadius: radius)
+        projectileNode?.fillColor = NSColor.black
+        projectileNode?.strokeColor = NSColor.white
+        projectileNode?.lineWidth = 1
+        projectileNode?.position = projectile.position
+        
+        addChild(projectileNode!)
+    }
+    
+    // Remove the projectile
+    func removeProjectile() {
+        projectileNode?.removeFromParent()
+        projectileNode = nil
+        projectile = nil
+        isShotInProgress = false
     }
 }
